@@ -190,7 +190,14 @@ public class ColliderDetails : EditorWindow
 
         colliderIndexOnObject = EditorGUILayout.Popup("Trigger Collider", colliderIndexOnObject, colliderNames);
 
+        // Check if it is already set to trigger
+        if (colliders.Length > 0 && colliders[colliderIndexOnObject] != null)
+        {
+            isTrigger = colliders[colliderIndexOnObject].isTrigger;
+        }
+        // Flag to set collider as trigger
         isTrigger = EditorGUILayout.Toggle("Is Trigger", isTrigger);
+        // If yes - set as trigger or set to not trigger
         if (isTrigger)
         {
             SetTrigger(colliderIndexOnObject, colliders);
@@ -309,8 +316,6 @@ public class ColliderDetails : EditorWindow
             // Recursively get the children of the child
             allChildren.AddRange(GetAllChildren(childTransform));
         }
-        GameObject temp = new GameObject();
-        allChildren.Add(temp);
 
         return allChildren.ToArray();
     }
