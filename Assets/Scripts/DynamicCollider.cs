@@ -1,3 +1,4 @@
+using RPGCharacterAnims.Lookups;
 using System.Collections;
 using System.Collections.Generic;
 using System.Xml.Serialization;
@@ -5,15 +6,19 @@ using UnityEngine;
 
 public class DynamicCollider : MonoBehaviour
 {
-    public bool expandedView = false;
+    public bool expandDetails = false;
 
     public bool isDynamicEnabled;
     public Collider triggerCollider;
+    public float resetTime = 1f;
+    public bool onResetKeepTriggerActive;
     private Collider otherCol;
     private MeshCollider meshCol;
-    public bool isInside = false;
-    public float resetTime = 1f;
-    
+    private bool isInside = false;
+
+    [Header("Debug Options")]
+    public bool debugDynamicCollision = true;
+
 
     void Start()
     {
@@ -39,7 +44,7 @@ public class DynamicCollider : MonoBehaviour
         }
         else
         {
-            Debug.Log("Dynamic Collision is not enabled");
+            if (debugDynamicCollision) { Debug.Log("Dynamic Collision is not enabled on " + gameObject.name); }
         }
     }
 
@@ -48,7 +53,6 @@ public class DynamicCollider : MonoBehaviour
         if (isDynamicEnabled && !isInside && otherCol != null)
         {
             Debug.Log("Hit Outside Collider!");
-            //Debug.Log("Miss!");
 
             otherCol.enabled = false;
             meshCol.enabled = true;
@@ -95,7 +99,14 @@ public class DynamicCollider : MonoBehaviour
         // Wait for the resetTime to pass
         yield return new WaitForSeconds(resetTime);
 
-        otherCol.enabled = true;
+        if (onResetKeepTriggerActive)
+        {
+            otherCol.enabled = true;
+        }
+        else
+        {
+            otherCol.enabled = false;
+        }
         meshCol.enabled = false;
         isInside = false;
     }

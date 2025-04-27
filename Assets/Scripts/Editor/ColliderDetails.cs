@@ -15,12 +15,11 @@ public class ColliderDetails : EditorWindow
     private DynamicCollider dynamCollider;
 
     private Collider[] colliders;
-    private Collider triggerCol;
     private bool isTrigger;
     private ColliderTypes colliderType;
     private string[] colliderNames;
     private int colliderIndexOnObject;
-    private GameObject[] parentAndChildren;
+    private int triggerIndex;
     private GameObject[] children;
 
     private bool enableDynamCollision;
@@ -31,26 +30,24 @@ public class ColliderDetails : EditorWindow
     private bool scaleY = false;
     private bool scaleZ = false;
     private float scaler;
-    private bool effectInverse = false;
-    private bool effectChildren = false;
+    private bool affectInverse = false;
+    private bool affectChildren = false;
 
     private Vector3 boxOriginalSize;
     private bool hasOriginalSize = false;
-    private float boxScale;
     private float capOriginalRadius = 0.5f;
     private float capOriginalHeight = 2f;
 
-    private int childCount;
+    private Vector2 scrollPosition;
 
     private enum ColliderTypes
     {
         BoxCollider, CapsuleCollider, SphereCollider, MeshCollider
     }
 
-    
     public static ColliderDetails ShowWindow()
     {
-        ColliderDetails window = EditorWindow.GetWindow<ColliderDetails>("Custom Editor");
+        ColliderDetails window = EditorWindow.GetWindow<ColliderDetails>("Collider Details");
         return window;
     }
 
@@ -63,6 +60,10 @@ public class ColliderDetails : EditorWindow
     // What happens in the window
     private void OnGUI()
     {
+        // Make scrollable
+        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, GUILayout.Width(position.width), GUILayout.Height(position.height));
+
+        EditorGUILayout.Space(3);
         // Space to hold the gameobject that is being edited
         objectToEdit = (GameObject)EditorGUILayout.ObjectField("Object to Edit", objectToEdit, typeof(GameObject), true);
         objectToEdit = Selection.activeGameObject;
@@ -78,41 +79,52 @@ public class ColliderDetails : EditorWindow
 
         colliders = objectToEdit?.GetComponents<Collider>();
 
-        // Get all children that have a MeshRenderer
-        parentAndChildren = GetAllChildren(objectToEdit.transform);
-        parentAndChildren[parentAndChildren.Length - 1] = objectToEdit;
-        children = GetAllChildren(objectToEdit.transform);
+        // Get all children if there are any
+        if (objectToEdit.transform.childCount > 0)
+        {
+            children = GetAllChildren(objectToEdit.transform);
+        }
 
         // Prepare an array of names to show in the dropdown
         colliderNames = new string[colliders.Length];
         for (int i = 0; i < colliders.Length; i++)
         {
-            // Use the GameObject name the collider is attached to
+            // Get the type of collider
             colliderNames[i] = colliders[i].GetType().Name;
         }
 
+        EditorGUILayout.Space(4);
         colliderIndexOnObject = EditorGUILayout.Popup("Collider To Edit", colliderIndexOnObject, colliderNames);
 
 
         if (colliders.Length > 0)
         {
-            DisplayColliderOptions(colliders[colliderIndexOnObject]);
+            GUIStyle labelText = new GUIStyle(EditorStyles.label);
+            labelText.fontSize = 16;  // Set the font size to 20
 
             EditorGUILayout.Space(5);
+            // Formatting Label
+            GUILayout.Label("Size", labelText);
+            
+
+            DisplayColliderOptions(colliders[colliderIndexOnObject]);
+
             GUILayout.BeginHorizontal();
             GUILayout.Label("Max Size:");
             GUILayout.FlexibleSpace();
             maxSliderSize = EditorGUILayout.FloatField(maxSliderSize, GUILayout.Width(50));
             GUILayout.EndHorizontal();
+            
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Position Bounds:");
-            GUILayout.FlexibleSpace();
-            maxSliderPos = EditorGUILayout.FloatField(maxSliderPos, GUILayout.Width(50));
-            GUILayout.EndHorizontal();
-            EditorGUILayout.Space(5);
+            EditorGUILayout.Space(20);
 
-            ConfigurePos(colliders[colliderIndexOnObject]);
+            
+
+            // Apply the custom style to the label
+            GUILayout.Label("Position", labelText);
+
+            EditorGUI.indentLevel = 1;
+            ConfigurePos(colliders[colliderIndexOnObject]);            
 
             // Button to remove selected collider
             if (GUILayout.Button("Remove Selected Collider"))
@@ -133,11 +145,12 @@ public class ColliderDetails : EditorWindow
             }
         }
 
-        EditorGUILayout.Space(50);
+        EditorGUILayout.Space(20);
 
         // Add new collider
         colliderType = (ColliderTypes)EditorGUILayout.EnumPopup("Collider To Add", colliderType);
 
+        EditorGUILayout.Space(10);
         if (GUILayout.Button("Add Collider"))
         {
             // Add new collider and reset scale
@@ -145,7 +158,7 @@ public class ColliderDetails : EditorWindow
             scaler = 1;
         }
 
-        EditorGUILayout.Space(10);
+        EditorGUILayout.Space(5);
 
         // Add new collider
         if (GUILayout.Button("Add To Children"))
@@ -153,9 +166,10 @@ public class ColliderDetails : EditorWindow
             AddColliderToChildren(colliderType);
         }
 
-
+        EditorGUILayout.Space(20);
 
         enableDynamCollision = EditorGUILayout.Toggle("Enable Dynamic Collision", enableDynamCollision);
+        EditorGUILayout.Space(5);
 
         if (enableDynamCollision)
         {
@@ -188,31 +202,38 @@ public class ColliderDetails : EditorWindow
             dynamCollider.isDynamicEnabled = false;
         }
 
-        colliderIndexOnObject = EditorGUILayout.Popup("Trigger Collider", colliderIndexOnObject, colliderNames);
+        triggerIndex = EditorGUILayout.Popup("Trigger Collider", triggerIndex, colliderNames);
+        EditorGUILayout.Space(2);
 
         // Check if it is already set to trigger
-        if (colliders.Length > 0 && colliders[colliderIndexOnObject] != null)
+        if (colliders.Length > 0 && colliders[triggerIndex] != null)
         {
-            isTrigger = colliders[colliderIndexOnObject].isTrigger;
+            isTrigger = colliders[triggerIndex].isTrigger;
         }
         // Flag to set collider as trigger
         isTrigger = EditorGUILayout.Toggle("Is Trigger", isTrigger);
         // If yes - set as trigger or set to not trigger
-        if (isTrigger)
+        if (isTrigger && colliders.Length > 0)
         {
-            SetTrigger(colliderIndexOnObject, colliders);
+            SetTrigger(triggerIndex, colliders);
+            dynamCollider.triggerCollider = colliders[triggerIndex];
         }
         else if (!isTrigger)
         {
-            UndoTrigger(colliderIndexOnObject, colliders);
+            UndoTrigger(triggerIndex, colliders);
         }
+        EditorGUILayout.Space(10);
 
         // Close button
         if (GUILayout.Button("Close"))
         {
             Close();
         }
-        
+
+        EditorGUILayout.Space(30);
+        EditorGUILayout.EndScrollView();
+
+
     }
 
     // Override destroy to reset the bool any time the window is closed
@@ -220,7 +241,7 @@ public class ColliderDetails : EditorWindow
     {
         if (dynamCollider != null)
         {
-            dynamCollider.expandedView = false;
+            dynamCollider.expandDetails = false;
         }
     }
 
@@ -303,7 +324,7 @@ public class ColliderDetails : EditorWindow
     // Recursive function to get all children and descendants
     private GameObject[] GetAllChildren(Transform parent)
     {
-        // Get the total number of immediate children
+        // Get the number of immediate children
         int childCount = parent.childCount;
         List<GameObject> allChildren = new List<GameObject>();
 
@@ -313,7 +334,7 @@ public class ColliderDetails : EditorWindow
             Transform childTransform = parent.GetChild(i);
             allChildren.Add(childTransform.gameObject);
 
-            // Recursively get the children of the child
+            // Recursively get the children of the child - Add the array to the list
             allChildren.AddRange(GetAllChildren(childTransform));
         }
 
@@ -391,6 +412,8 @@ public class ColliderDetails : EditorWindow
 
         scaler = EditorGUILayout.Slider("Scale", scaler, 0.1f, 5f);
 
+        EditorGUI.indentLevel = 1;
+
         // Get the current size
         currentSize = col.size;
 
@@ -400,6 +423,7 @@ public class ColliderDetails : EditorWindow
             EditorGUILayout.Slider("Y Size", col.size.y, 0.1f, maxSliderSize),
             EditorGUILayout.Slider("Z Size", col.size.z, 0.1f, maxSliderSize)
         );
+        
 
         //if the scale is not 0 and the old scale is not the same as the new scale
         if (oldScale != scaler && scaler != 0)
@@ -428,7 +452,7 @@ public class ColliderDetails : EditorWindow
             col.size = boxOriginalSize;
         }
 
-        if (effectChildren)
+        if (affectChildren)
         {
             foreach (GameObject obj in children)
             {
@@ -466,7 +490,7 @@ public class ColliderDetails : EditorWindow
         {
             BoxCollider boxCollider = (BoxCollider)col;
             boxCollider.center = center;
-            if (effectChildren)
+            if (affectChildren)
             {
                 foreach (GameObject obj in children)
                 {
@@ -482,7 +506,7 @@ public class ColliderDetails : EditorWindow
         {
             CapsuleCollider capCollider = (CapsuleCollider)col;
             capCollider.center = center;
-            if (effectChildren)
+            if (affectChildren)
             {
                 foreach (GameObject obj in children)
                 {
@@ -498,7 +522,7 @@ public class ColliderDetails : EditorWindow
         {
             SphereCollider sphCollider = (SphereCollider)col;
             sphCollider.center = center;
-            if (effectChildren)
+            if (affectChildren)
             {
                 foreach (GameObject obj in children)
                 {
@@ -512,10 +536,8 @@ public class ColliderDetails : EditorWindow
         }
     }
 
-
     private void ConfigurePos(Collider collider)
     {
-
         Vector3 currentPos;
         currentPos = GetColCenter(collider);
         Vector3 placeholder;
@@ -531,6 +553,15 @@ public class ColliderDetails : EditorWindow
             EditorGUILayout.Slider("Center Z", placeholder.z, -maxSliderPos, maxSliderPos)
         );
 
+        EditorGUI.indentLevel = 0;
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Position Bounds:");
+        GUILayout.FlexibleSpace();
+        maxSliderPos = EditorGUILayout.FloatField(maxSliderPos, GUILayout.Width(50));
+        GUILayout.EndHorizontal();
+        EditorGUILayout.Space(2);
+
         // Depending on the booleans selected, link each position
         EditorGUILayout.Space(5);
         GUILayout.Label("Link Position Vales:");
@@ -542,15 +573,16 @@ public class ColliderDetails : EditorWindow
         scaleZ = EditorGUILayout.ToggleLeft("Link Z", scaleZ, GUILayout.Width(80));
         GUILayout.EndHorizontal();
 
-        EditorGUILayout.Space(5);
+        EditorGUILayout.Space(1);
         GUILayout.BeginHorizontal();
-        effectInverse = EditorGUILayout.Toggle("Effect Inversely", effectInverse);
+        affectInverse = EditorGUILayout.Toggle("Affect Inversely", affectInverse);
         GUILayout.EndHorizontal();
 
-        EditorGUILayout.Space(5);
+        EditorGUILayout.Space(10);
         GUILayout.BeginHorizontal();
-        effectChildren = EditorGUILayout.Toggle("Effect Children", effectChildren);
+        affectChildren = EditorGUILayout.Toggle("Affect Children", affectChildren);
         GUILayout.EndHorizontal();
+        EditorGUILayout.Space(10);
 
         float diff1;
         float diff2;
@@ -569,7 +601,7 @@ public class ColliderDetails : EditorWindow
             if (diff1 != 0)
             {
                 // Update all linked positions
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.y -= diff1;
                     currentPos.z -= diff1;
@@ -582,7 +614,7 @@ public class ColliderDetails : EditorWindow
             }
             if (diff2 != 0)
             {
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.x -= diff2;
                     currentPos.z -= diff2;
@@ -595,7 +627,7 @@ public class ColliderDetails : EditorWindow
             }
             if (diff3 != 0)
             {
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.y -= diff3;
                     currentPos.x -= diff3;
@@ -615,7 +647,7 @@ public class ColliderDetails : EditorWindow
 
             if (diff1 != 0)
             {
-                if(effectInverse)
+                if(affectInverse)
                 {
                     currentPos.y -= diff1;
                 }
@@ -624,7 +656,7 @@ public class ColliderDetails : EditorWindow
             }
             if (diff2 != 0)
             {
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.x -= diff2;
                 }
@@ -640,7 +672,7 @@ public class ColliderDetails : EditorWindow
 
             if (diff1 != 0)
             {
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.z -= diff1;
                 }
@@ -649,7 +681,7 @@ public class ColliderDetails : EditorWindow
             }
             if (diff2 != 0)
             {
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.x -= diff2;
                 }
@@ -664,7 +696,7 @@ public class ColliderDetails : EditorWindow
 
             if (diff1 != 0)
             {
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.y -= diff1;
                 }
@@ -673,7 +705,7 @@ public class ColliderDetails : EditorWindow
             }
             if (diff2 != 0)
             {
-                if (effectInverse)
+                if (affectInverse)
                 {
                     currentPos.z -= diff2;
                 }
@@ -737,7 +769,7 @@ public class ColliderDetails : EditorWindow
             col.height = capOriginalHeight;
         }
 
-        if (effectChildren)
+        if (affectChildren)
         {
             foreach (GameObject obj in children)
             {
@@ -758,7 +790,7 @@ public class ColliderDetails : EditorWindow
 
         col.radius = EditorGUILayout.Slider("Radius", col.radius, 0.01f, maxSliderSize);
 
-        if (effectChildren)
+        if (affectChildren)
         {
             foreach (GameObject obj in children)
             {

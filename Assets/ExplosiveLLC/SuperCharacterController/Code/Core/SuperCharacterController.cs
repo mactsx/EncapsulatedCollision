@@ -344,7 +344,7 @@ public partial class SuperCharacterController:MonoBehaviour
 		for (int i = 0; i < ignoredColliders.Count; i++) {
 			Collider col = ignoredColliders[i];
 			ignoredColliderStack.Add(new IgnoredCollider(col, col.gameObject.layer));
-			col.gameObject.layer = TemporaryLayerIndex;
+			//col.gameObject.layer = TemporaryLayerIndex;
 		}
 	}
 

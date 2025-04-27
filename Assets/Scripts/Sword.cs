@@ -6,6 +6,7 @@ public class Sword : MonoBehaviour
 {
     private Collider col;
     public float duration = 1.1f;
+    private bool hasHit = false;
 
     // Start is called before the first frame update
     void Start()
@@ -26,12 +27,14 @@ public class Sword : MonoBehaviour
     public void StartSwing()
     {
         col.enabled = true;
-        Invoke(nameof(EndSwing), duration); // Duration of the hit window
+        // Invoke after hit window
+        Invoke(nameof(EndSwing), duration); 
     }
 
     void EndSwing()
     {
         col.enabled = false;
+        hasHit = false;
     }
 
 
@@ -39,11 +42,12 @@ public class Sword : MonoBehaviour
     {
         if (other.CompareTag("Enemy"))
         {
-            if (other.GetComponent<Damageable>() != null)
+            if (other.GetComponent<Damageable>() != null && !hasHit)
             {
                 Damageable hit = other.GetComponent<Damageable>();
                 Vector3 hitPoint = other.ClosestPoint(transform.position);
                 hit.TakeDamage(8, hitPoint);
+                hasHit = true;
             }
         }
     }

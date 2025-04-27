@@ -8,13 +8,13 @@ public class PopUpEditor : Editor
 
     public override void OnInspectorGUI()
     {
-        DynamicCollider myScript = (DynamicCollider)target;
+        DynamicCollider dynamC = (DynamicCollider)target;
 
         // Draw the default inspector
         DrawDefaultInspector();
 
         // Check if the boolean flag is true
-        if (myScript.expandedView)
+        if (dynamC.expandDetails)
         {
             // Open the custom editor window if it's not already open
             if (window == null)
@@ -33,7 +33,7 @@ public class PopUpEditor : Editor
         }
         if (window == null)
         {
-            myScript.expandedView = false;
+            dynamC.expandDetails = false;
         }
     }
 }
