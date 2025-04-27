@@ -8,10 +8,12 @@ public class DynamicCollider : MonoBehaviour
     public bool expandedView = false;
 
     public bool isDynamicEnabled;
-    private BoxCollider boxCol;
+    public Collider triggerCollider;
+    private Collider otherCol;
     private MeshCollider meshCol;
     public bool isInside = false;
-    public float resetTime = 2f;
+    public float resetTime = 1f;
+    
 
     void Start()
     {
@@ -19,43 +21,72 @@ public class DynamicCollider : MonoBehaviour
         if (isDynamicEnabled)
         {
             // Get references to the colliders on the object
-            boxCol = GetComponent<BoxCollider>();
+            otherCol = triggerCollider;
             meshCol = GetComponent<MeshCollider>();
 
+            if (meshCol == null) 
+            {
+                meshCol = gameObject.AddComponent<MeshCollider>();
+            }
             // Initially set the MeshCollider as inactive
             meshCol.enabled = false;
 
-            // Ensure box collider is set to trigger
-            boxCol.isTrigger = true;
+            if (otherCol != null)
+            {
+                // Ensure other collider is set to trigger
+                otherCol.isTrigger = true;
+            }
         }
         else
         {
             Debug.Log("Dynamic Collision is not enabled");
         }
-        
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        
-
-        if (isDynamicEnabled && !isInside)
+        if (isDynamicEnabled && !isInside && otherCol != null)
         {
             Debug.Log("Hit Outside Collider!");
             //Debug.Log("Miss!");
 
-            boxCol.enabled = false;
+            otherCol.enabled = false;
             meshCol.enabled = true;
             isInside = true;
 
             // Start the reset coroutine
             StartCoroutine(ResetCollider());
-        }
-        if (meshCol != null && meshCol.enabled && other is MeshCollider)
-        {
-            Debug.Log("Hit Mesh to Mesh!");
+
+            if (meshCol != null && meshCol.enabled && other is MeshCollider)
+            {
+                Debug.Log("Hit Mesh to Mesh!");
+            }
         }
 
+    }
+
+    public void SetTrigger(int i, Collider[] allCols)
+    {
+        if (allCols[i] is MeshCollider)
+        { }
+        else
+        {
+            allCols[i].isTrigger = true;
+        }
+    }
+
+    public void UndoisTrigger(int i, Collider[] allCols)
+    {
+        if (allCols[i] is MeshCollider)
+        { }
+        else
+        {
+            if (allCols[i] == null)
+            {
+                return;
+            }
+            allCols[i].isTrigger = false;
+        }
     }
 
 
@@ -64,14 +95,9 @@ public class DynamicCollider : MonoBehaviour
         // Wait for the resetTime to pass
         yield return new WaitForSeconds(resetTime);
 
-        boxCol.enabled = true;
+        otherCol.enabled = true;
         meshCol.enabled = false;
         isInside = false;
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        
     }
 
 }
